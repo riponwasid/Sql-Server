@@ -1,0 +1,47 @@
+USE Master
+SET NOCOUNT ON
+
+DECLARE Users CURSOR FOR
+       SELECT spid
+       FROM master..sysprocesses
+       WHERE db_name(dbid) = 'FP_V_1_0'
+
+DECLARE @spid INT, 
+       @str VARCHAR(255)
+
+OPEN Users
+FETCH NEXT FROM Users INTO @spid
+WHILE @@fetch_status <> -1
+BEGIN
+   IF @@fetch_status = 0
+   BEGIN
+      SET @str = 'KILL ' + CONVERT(VARCHAR, @spid)
+      EXEC (@str)
+   END
+   FETCH NEXT FROM Users INTO @spid
+END
+DEALLOCATE Users
+GO
+
+ALTER DATABASE FP_Security_V_1_0 SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+GO
+
+ALTER DATABASE FP_Security_V_1_0 SET OFFLINE
+GO
+ALTER DATABASE FP_Security_V_1_0  MODIFY FILE (NAME = FP_V_1_0, FILENAME = 'D:\LivePortalDB\FP_V_1_0.mdf')
+GO
+ALTER DATABASE FP_Security_V_1_0  MODIFY FILE (NAME = FP_V_1_0_log, FILENAME = 'D:\LivePortalDB\FP_V_1_0_log.ldf')
+GO
+
+ALTER DATABASE FP_Security_V_1_0  SET ONLINE
+GO
+ALTER DATABASE FP_Security_V_1_0 SET MULTI_USER
+GO
+
+
+SELECT total_log_size_in_bytes/1048576.0 AS [Total Log Size in Bytes],
+used_log_space_in_bytes/1048576.0 AS [Used Log Size in Bytes],
+used_log_space_in_percent [Used Log Space in %],
+(total_log_size_in_bytes - used_log_space_in_bytes)/1048576.0 AS [Free log space in MB],
+log_space_in_bytes_since_last_backup/1048576.0 [Log Since Last Log Backup]
+FROM sys.dm_db_log_space_usage;
